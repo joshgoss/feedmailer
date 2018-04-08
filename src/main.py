@@ -1,6 +1,70 @@
 import argparse
+import sqlite3
+
+##############################
+# Constants
+##############################
+
+DB_LOCATION = 'feed-mailer.db'
+APP_NAME = 'feed-mailer'
 
 
+############################
+# Database Functions
+############################
+
+def get_user_version(conn):
+    cur = conn.cursor()
+
+    cur.execute("PRAGMA USER_VERSION")
+    results = cur.fetchone()
+    cur.close()
+
+    return results[0]
+
+
+def setup_db(conn):
+    version = get_user_version(conn) + 1
+    cur = conn.cursor()
+
+    if version == 1:
+        # Create feeds table
+        feeds_table = ("CREATE TABLE feeds ("
+                       "feed_id INTEGER PRIMARY KEY,"
+                       "title VARCHAR(75) NOT NULL,"
+                       "url VARCHAR(155) UNIQUE NOT NULL,"
+                       "digest BOOLEAN DEFAULT FALSE,"
+                       "max_age INTEGER NULL,"
+                       "created_at DATETIME,"
+                       "checked_at DATETIME NULL,"
+                       "delivered_at DATETIME NULL"
+                       ");")
+
+        articles_table = ("CREATE TABLE articles("
+                        "articles_id INTEGER PRIMARY KEY,"
+                        "title VARCHAR(100) NOT NULL,"
+                        "author VARCHAR(100) NOT NULL,"
+                        "feed_id INTEGER NOT NULL,"
+                        "category VARCHAR(55) NOT NULL,"
+                        "description TEXT(2000),"
+                        "published_at DATETIME,"
+                        "created_at DATETIME,"
+                        "delivered_at DATETIME NULL,"
+                        "FOREIGN KEY(feed_id) REFERENCES feeds(feed_id)"
+                        ");")
+
+        cur.execute(feeds_table)
+        cur.execute(articles_table)
+        cur.execute("PRAGMA user_version={v:d}".format(v=version))
+
+        conn.commit()
+
+    cur.close()
+
+
+############################
+# Commandline Functions
+#############################
 def handle_list():
     pass
 
@@ -16,9 +80,8 @@ def handle_refresh(feed_id):
 def handle_deliver(feed_id):
     pass
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="feed-mailer", description="Deliver feeds by email")
+def run_cli(conn):
+    parser = argparse.ArgumentParser(prog=APP_NAME, description="Deliver feeds by email")
 
     subparsers = parser.add_subparsers(help='commands', dest='command')
 
@@ -67,3 +130,12 @@ if __name__ == "__main__":
         handle_refresh(args.feed_id)
     else:
         parser.print_help()
+
+
+if __name__ == "__main__":
+    conn = sqlite3.connect(DB_LOCATION)
+
+    setup_db(conn)
+    run_cli(conn)
+
+    conn.close()
