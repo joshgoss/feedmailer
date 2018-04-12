@@ -26,11 +26,23 @@ def handle_add(conn, args):
 def handle_list(conn, args):
     feeds = database.find_feeds(conn)
 
+    if not len(feeds):
+        print("No feeds added yet")
+        return
+
     for f in feeds:
         feed_id = f[0]
         title = f[1]
-
         print("%d) %s" % (feed_id, title))
+
+def handle_remove(conn, feed_id):
+    results = database.find_feeds(conn, feed_id=feed_id)
+
+    if not len(results):
+        print("ERROR: No feed found with that id.")
+        return
+
+    database.delete_feed(conn, feed_id)
 
 def run_cli(**kwargs):
     parser = argparse.ArgumentParser(prog=constants.APP_NAME, description="Deliver feeds by email")
@@ -76,7 +88,7 @@ def run_cli(**kwargs):
     elif args.command == 'list':
         handle_list(kwargs['conn'], args)
     elif args.command == 'remove':
-        return
+        handle_remove(kwargs['conn'], args.feed_id)
     elif args.command == 'deliver':
         return
     elif args.command == 'refresh':

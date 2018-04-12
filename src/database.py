@@ -71,5 +71,10 @@ def create_feed(conn, **kwargs):
     cur.close()
 
 
-def delete_feed(feed_id):
-    pass
+def delete_feed(conn, feed_id):
+    cur = conn.cursor()
+    query = "DELETE FROM feeds WHERE feed_id = ?;"
+
+    cur.execute(query, (feed_id,))
+    conn.commit()
+    cur.close()
