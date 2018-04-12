@@ -52,10 +52,11 @@ def setup_db(conn):
 def find_feeds(conn, **kwargs):
     feed_id = kwargs.get('feed_id', None)
     title = kwargs.get('title', None)
-    query = "SELECT * FROM feeds WHERE feed_id = COALESCE(?, feed_id) AND title = COALESCE(?, title);"
+    url = kwargs.get('url', None)
+    query = "SELECT * FROM feeds WHERE feed_id = COALESCE(?, feed_id) AND title = COALESCE(?, title) AND url = COALESCE(?, url);"
 
     cur = conn.cursor()
-    cur.execute(query, (feed_id, title))
+    cur.execute(query, (feed_id, title, url))
     rows = cur.fetchall()
     cur.close()
 
