@@ -23,6 +23,14 @@ def handle_add(conn, args):
                          digest = args.digest,
                          max_age = args.max_age)
 
+def handle_list(conn, args):
+    feeds = database.find_feeds(conn)
+
+    for f in feeds:
+        feed_id = f[0]
+        title = f[1]
+
+        print("%d) %s" % (feed_id, title))
 
 def run_cli(**kwargs):
     parser = argparse.ArgumentParser(prog=constants.APP_NAME, description="Deliver feeds by email")
@@ -66,9 +74,9 @@ def run_cli(**kwargs):
     if args.command == 'add':
         handle_add(kwargs['conn'], args)
     elif args.command == 'list':
-        return
+        handle_list(kwargs['conn'], args)
     elif args.command == 'remove':
-        handle_remove(args.feed_id)
+        return
     elif args.command == 'deliver':
         return
     elif args.command == 'refresh':
