@@ -1,22 +1,62 @@
 import argparse
 import feedparser
+import html2text
+import smtplib
+from email.message import EmailMessage
+from email.headerregistry import Address
+from jinja2 import Template
 
-from feedmailer import database
+from feedmailer import constants, database
+
+
+class Mailer:
+    def __init__(self, **kwargs):
+        self.host = kwargs['host']
+        self.user = kwargs['user']
+        self.password = kwargs['password']
+        self.auth = kwargs['auth']
+        self.ssl = kwargs['ssl']
+        self.port = kwargs['port']
+        self.to_email = kwargs['to_email']
+
+
+    def send(self, subject, content):
+        constructor = smtplib.SMTP
+
+        if self.ssl:
+            constructor = smtplib.SMTP_SSL
+
+        with constructor(self.host) as s:
+            if self.auth:
+                s.login(self.user, self.password)
+
+            msg = EmailMessage()
+            msg['From'] = Address(constants.DEFAULT_SENDER_NAME, self.user)
+            msg['To'] = Address('', self.to_email)
+            msg['Subject'] = subject
+
+            msg.set_content(content)
+            s.send_message(msg)
 
 
 # convert feedparser entry to db schema of an article
 def __entry_to_article(entry):
     published = None
+    author = None
+    h = html2text.HTML2Text()
+    h.ignore_links = True
 
-    # convert published date to UTC
     if 'published' in entry and entry.published:
         published = entry.published
 
+    if 'author' in entry and entry.author:
+        author = entry.author
+
     return {
-        'title': entry.title,
+        'title': h.handle(entry.title).strip(),
         'url': entry.link,
-        'author': None,
-        'description': entry.description,
+        'author': author,
+        'description': h.handle(entry.description).strip(),
         'published_at': published
     }
 
@@ -113,6 +153,7 @@ def __handle_refresh_all(session):
 
 def __handle_deliver_subscription(session, subscription_id):
     subscription = database.find_subscription_by_id(session.db, subscription_id)
+    config = session.config
 
     if not subscription:
         print("No subscription exists with that id")
@@ -122,12 +163,43 @@ def __handle_deliver_subscription(session, subscription_id):
 
     database.set_attempted_delivery_at(session.db, subscription_id)
 
+    mailer = Mailer(
+        host = config['smtp_host'],
+        port = config['smtp_port'],
+        user = config['smtp_user'],
+        password = config['smtp_password'],
+        auth = config['smtp_auth'],
+        ssl = config['smtp_ssl'],
+        to_email = subscription['email']
+    )
+
     if not articles:
         print("No articles to deliver")
+        return
 
+    if not subscription['digest']:
+        with open(constants.TXT_ARTICLE_TEMPLATE) as f:
+            template = Template(f.read())
+
+            for a in articles:
+                subject = subscription['title'] + ' - ' + a['title']
+
+                content = template.render(article=a)
+
+                mailer.send(
+                    subject = subject[:80],
+                    content = content
+                )
     else:
-        print("Found %d articles to deliver" % (len(articles)))
+        with open(constants.TXT_DIGEST_TEMPLATE) as f:
+            template = Template(f.read())
 
+            content = template.render(articles=articles, feed_title=subscription['title'])
+
+            mailer.send(
+                subscription['title'] + 'Digest',
+                content
+            )
 
 
 def __handle_deliver_all(session):
