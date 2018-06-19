@@ -218,7 +218,7 @@ def find_articles_for_delivery(conn, subscription_id):
              "FROM subscriptions s "
              "INNER JOIN articles a ON s.feed_id = a.feed_id "
              "WHERE s.subscription_id = ? "
-             "AND COALESCE(a.published_at, a.created_at) > COALESCE(s.attempted_delivery_at, a.created_at); ")
+             "AND a.created_at > COALESCE(s.attempted_delivery_at, a.created_at); ")
 
     cur.execute(query, (subscription_id,))
     conn.commit()

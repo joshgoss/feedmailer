@@ -1,10 +1,7 @@
 import argparse
 import feedparser
-from datetime import datetime
-from dateutil import parser
 
-from constants import APP_NAME
-import database
+from feedmailer import database
 
 
 # convert feedparser entry to db schema of an article
@@ -13,9 +10,7 @@ def __entry_to_article(entry):
 
     # convert published date to UTC
     if 'published' in entry and entry.published:
-        published = parser.parse(entry.published)
-
-
+        published = entry.published
 
     return {
         'title': entry.title,
@@ -127,7 +122,7 @@ def __handle_deliver_subscription(session, subscription_id):
 
     database.set_attempted_delivery_at(session.db, subscription_id)
 
-    if not len(articles):
+    if not articles:
         print("No articles to deliver")
 
     else:
@@ -139,8 +134,8 @@ def __handle_deliver_all(session):
     pass
 
 
-def run_cli(session):
-    parser = argparse.ArgumentParser(prog=APP_NAME, description="Deliver feeds by email")
+def run(session):
+    parser = argparse.ArgumentParser(prog=session.app_name, description="Deliver feeds by email")
 
     subparsers = parser.add_subparsers(help='commands', dest='command')
 
