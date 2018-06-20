@@ -1,4 +1,5 @@
 import argparse
+from dateutil import parser
 import feedparser
 import html2text
 import smtplib
@@ -26,7 +27,7 @@ class Mailer:
         if self.ssl:
             constructor = smtplib.SMTP_SSL
 
-        with constructor(self.host) as s:
+        with constructor(host=self.host, port=self.port) as s:
             if self.auth:
                 s.login(self.user, self.password)
 
@@ -47,7 +48,7 @@ def __entry_to_article(entry):
     h.ignore_links = True
 
     if 'published' in entry and entry.published:
-        published = entry.published
+        published = parser.parse(entry.published)
 
     if 'author' in entry and entry.author:
         author = entry.author
@@ -151,7 +152,7 @@ def __handle_refresh_all(session):
 
 
 
-def __handle_deliver_subscription(session, subscription_id):
+def __handle_deliver_subscription(session, subscription_id, pretend=False):
     subscription = database.find_subscription_by_id(session.db, subscription_id)
     config = session.config
 
@@ -161,7 +162,17 @@ def __handle_deliver_subscription(session, subscription_id):
 
     articles = database.find_articles_for_delivery(session.db, subscription_id)
 
+    if pretend:
+        for a in articles:
+            print("%d. %s (%s)\n" % (a['article_id'], a['title'], a['url']))
+
+        return
+
     database.set_attempted_delivery_at(session.db, subscription_id)
+
+    if not articles:
+        print("No articles to deliver")
+        return
 
     mailer = Mailer(
         host = config['smtp_host'],
@@ -172,10 +183,6 @@ def __handle_deliver_subscription(session, subscription_id):
         ssl = config['smtp_ssl'],
         to_email = subscription['email']
     )
-
-    if not articles:
-        print("No articles to deliver")
-        return
 
     if not subscription['digest']:
         with open(constants.TXT_ARTICLE_TEMPLATE) as f:
@@ -200,10 +207,6 @@ def __handle_deliver_subscription(session, subscription_id):
                 subscription['title'] + 'Digest',
                 content
             )
-
-
-def __handle_deliver_all(session):
-    pass
 
 
 def run(session):
@@ -247,7 +250,16 @@ def run(session):
 
     # Deliver command
     parser_deliver = subparsers.add_parser('deliver', help='Email latest articles')
-    parser_deliver.add_argument('subscription_id', type=int, nargs='?', help='id of subscription')
+    parser_deliver.add_argument('subscription_id', type=int,  help='id of subscription')
+
+    parser_deliver.add_argument(
+        '--pretend',
+        action='store_true',
+        dest='pretend',
+        help='Don\'t actually mail anything, instead print out what would be delivered. Useful for debugging.'
+    )
+
+    parser_deliver.set_defaults(pretend=False)
 
     args = parser.parse_args()
 
@@ -260,10 +272,7 @@ def run(session):
     elif args.command == 'remove':
         __handle_remove(session, args.subscription_id)
     elif args.command == 'deliver':
-        if args.subscription_id:
-            __handle_deliver_subscription(session, args.subscription_id)
-        else:
-            __handle_deliver_all(session)
+        __handle_deliver_subscription(session, args.subscription_id, args.pretend)
     elif args.command == 'refresh':
         if args.feed_id:
             __handle_refresh_feed(session, args.feed_id)
