@@ -2,42 +2,8 @@ import argparse
 from dateutil import parser
 import feedparser
 import html2text
-import smtplib
-from email.message import EmailMessage
-from email.headerregistry import Address
-from jinja2 import Template
 
-from feedmailer import constants, database
-
-
-class Mailer:
-    def __init__(self, **kwargs):
-        self.host = kwargs['host']
-        self.user = kwargs['user']
-        self.password = kwargs['password']
-        self.auth = kwargs['auth']
-        self.ssl = kwargs['ssl']
-        self.port = kwargs['port']
-        self.to_email = kwargs['to_email']
-
-
-    def send(self, subject, content):
-        constructor = smtplib.SMTP
-
-        if self.ssl:
-            constructor = smtplib.SMTP_SSL
-
-        with constructor(host=self.host, port=self.port) as s:
-            if self.auth:
-                s.login(self.user, self.password)
-
-            msg = EmailMessage()
-            msg['From'] = Address(constants.DEFAULT_SENDER_NAME, self.user)
-            msg['To'] = Address('', self.to_email)
-            msg['Subject'] = subject
-
-            msg.set_content(content)
-            s.send_message(msg)
+from feedmailer import constants, database, mailer
 
 
 # convert feedparser entry to db schema of an article
@@ -184,8 +150,7 @@ def __handle_deliver_subscriptions(session, subscription_ids, pretend=False):
             continue
 
         database.set_attempted_delivery_at(session.db, subscription_id)
-
-        mailer = Mailer(
+        mailer_instance = mailer.Mailer(
             host = config['smtp_host'],
             port = config['smtp_port'],
             user = config['smtp_user'],
@@ -195,33 +160,18 @@ def __handle_deliver_subscriptions(session, subscription_ids, pretend=False):
             to_email = subscription['email']
         )
 
-        # individual email and not a digest
-        if not subscription['digest']:
-            with open(constants.TXT_ARTICLE_TEMPLATE) as f:
-                template = Template(f.read())
-
-                for a in articles:
-                    subject = subscription['title'] + ' - ' + a['title']
-
-                    content = template.render(article=a)
-
-                    mailer.send(
-                        subject = subject[:80],
-                        content = content
-                    )
-        # digest email template
+        if subscription['digest']:
+            mailer_instance.send_digest(
+                feed_title = subscription['title'],
+                articles = articles,
+                content_type = session.config['content_type']
+            )
         else:
-            with open(constants.TXT_DIGEST_TEMPLATE) as f:
-                template = Template(f.read())
-
-                content = template.render(
-                    articles=articles,
-                    feed_title=subscription['title']
-                )
-
-                mailer.send(
-                    subscription['title'] + 'Digest',
-                    content
+            for a in articles:
+                mailer_instance.send_article(
+                    feed_title = subscription['title'],
+                    article = a,
+                    content_type = session.config['content_type']
                 )
 
 

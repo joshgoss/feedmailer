@@ -16,8 +16,12 @@ class Session:
         self.config = kwargs['config']
 
 def __parse_config(config):
+    if config['DEFAULT']['content_type'] not in constants.CONTENT_TYPES:
+        raise ConfigError("Invalid content_type provided")
+
     return {
         'email': config['DEFAULT']['email'],
+        'content_type': config['DEFAULT']['content_type'],
         'digest': config['DEFAULT'].getboolean('digest'),
         'smtp_user': config['DEFAULT']['smtp_user'],
         'smtp_host': config['DEFAULT']['smtp_host'],
