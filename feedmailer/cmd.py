@@ -152,61 +152,77 @@ def __handle_refresh_all(session):
 
 
 
-def __handle_deliver_subscription(session, subscription_id, pretend=False):
-    subscription = database.find_subscription_by_id(session.db, subscription_id)
-    config = session.config
+def __handle_deliver_subscriptions(session, subscription_ids, pretend=False):
 
-    if not subscription:
-        print("No subscription exists with that id")
-        return
+    for subscription_id in subscription_ids:
+        subscription = database.find_subscription_by_id(
+            session.db,
+            subscription_id
+        )
 
-    articles = database.find_articles_for_delivery(session.db, subscription_id)
+        config = session.config
 
-    if pretend:
-        for a in articles:
-            print("%d. %s (%s)\n" % (a['article_id'], a['title'], a['url']))
+        if not subscription:
+            print("No subscription exists with that id")
+            return
 
-        return
+        articles = database.find_articles_for_delivery(
+            session.db,
+            subscription_id
+        )
 
-    database.set_attempted_delivery_at(session.db, subscription_id)
+        if not articles:
+            print("No articles to deliver for subscription  %d" % (subscription_id,))
+            continue
 
-    if not articles:
-        print("No articles to deliver")
-        return
-
-    mailer = Mailer(
-        host = config['smtp_host'],
-        port = config['smtp_port'],
-        user = config['smtp_user'],
-        password = config['smtp_password'],
-        auth = config['smtp_auth'],
-        ssl = config['smtp_ssl'],
-        to_email = subscription['email']
-    )
-
-    if not subscription['digest']:
-        with open(constants.TXT_ARTICLE_TEMPLATE) as f:
-            template = Template(f.read())
-
+        if pretend:
             for a in articles:
-                subject = subscription['title'] + ' - ' + a['title']
+                print(
+                    "%d. %s - %s (%s)\n" %
+                    (a['article_id'], subscription['title'], a['title'], a['url'])
+                )
+            continue
 
-                content = template.render(article=a)
+        database.set_attempted_delivery_at(session.db, subscription_id)
+
+        mailer = Mailer(
+            host = config['smtp_host'],
+            port = config['smtp_port'],
+            user = config['smtp_user'],
+            password = config['smtp_password'],
+            auth = config['smtp_auth'],
+            ssl = config['smtp_ssl'],
+            to_email = subscription['email']
+        )
+
+        # individual email and not a digest
+        if not subscription['digest']:
+            with open(constants.TXT_ARTICLE_TEMPLATE) as f:
+                template = Template(f.read())
+
+                for a in articles:
+                    subject = subscription['title'] + ' - ' + a['title']
+
+                    content = template.render(article=a)
+
+                    mailer.send(
+                        subject = subject[:80],
+                        content = content
+                    )
+        # digest email template
+        else:
+            with open(constants.TXT_DIGEST_TEMPLATE) as f:
+                template = Template(f.read())
+
+                content = template.render(
+                    articles=articles,
+                    feed_title=subscription['title']
+                )
 
                 mailer.send(
-                    subject = subject[:80],
-                    content = content
+                    subscription['title'] + 'Digest',
+                    content
                 )
-    else:
-        with open(constants.TXT_DIGEST_TEMPLATE) as f:
-            template = Template(f.read())
-
-            content = template.render(articles=articles, feed_title=subscription['title'])
-
-            mailer.send(
-                subscription['title'] + 'Digest',
-                content
-            )
 
 
 def run(session):
@@ -249,8 +265,17 @@ def run(session):
     parser_refresh.add_argument('feed_id', type=int, nargs='?', help='id of feed')
 
     # Deliver command
-    parser_deliver = subparsers.add_parser('deliver', help='Email latest articles')
-    parser_deliver.add_argument('subscription_id', type=int,  help='id of subscription')
+    parser_deliver = subparsers.add_parser(
+        'deliver',
+        help='Email latest articles'
+    )
+
+    parser_deliver.add_argument(
+        'subscription_ids',
+        type=int,
+        nargs='+',
+        help='ids of subscriptions to deliver'
+    )
 
     parser_deliver.add_argument(
         '--pretend',
@@ -272,7 +297,11 @@ def run(session):
     elif args.command == 'remove':
         __handle_remove(session, args.subscription_id)
     elif args.command == 'deliver':
-        __handle_deliver_subscription(session, args.subscription_id, args.pretend)
+        __handle_deliver_subscriptions(
+            session,
+            args.subscription_ids,
+            args.pretend
+        )
     elif args.command == 'refresh':
         if args.feed_id:
             __handle_refresh_feed(session, args.feed_id)
