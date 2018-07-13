@@ -8,5 +8,18 @@ USER_CONFIG_FILE = os.path.join(USER_CONFIG_DIR, 'feedmailer.cfg')
 USER_DB_FILE = os.path.join(USER_CONFIG_DIR, 'feedmailer.db')
 DEFAULT_CONFIG_FILE = os.path.join(DATA_DIR, 'defaults.cfg')
 DEFAULT_SENDER_NAME = 'Feed Mailer'
-TXT_ARTICLE_TEMPLATE = os.path.join(DATA_DIR, 'article.txt.jinja')
-TXT_DIGEST_TEMPLATE = os.path.join(DATA_DIR, 'digest.txt.jinja')
+
+CONTENT_TYPES = ['text', 'html']
+
+TEMPLATES = {
+    'text': {
+        'article_template': os.path.join(DATA_DIR, 'article.txt.jinja'),
+        'digest_template': os.path.join(DATA_DIR, 'digest.txt.jinja'),
+        'content_type': 'plain'
+    },
+    'html': {
+         'article_template': os.path.join(DATA_DIR, 'article.html.jinja'),
+        'digest_template': os.path.join(DATA_DIR, 'digest.html.jinja'),
+        'content_type': 'html'
+    }
+}

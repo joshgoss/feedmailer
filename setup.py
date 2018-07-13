@@ -12,7 +12,9 @@ setup(
     package_data={'feedmailer': [
         'data/defaults.cfg',
         'data/article.txt.jinja',
-        'data/digest.txt.jinja'
+        'data/digest.txt.jinja',
+        'data/digest.html.jinja',
+        'data/article.html.jinja'
     ]},
     license='GPL3',
     keywords='rss email feeds'
