@@ -66,7 +66,7 @@ feed-mailer refresh <id>
 ### Deliver Emails
 
 ``` bash
-feed-mailer deliver <id>
+feed-mailer deliver <ids>
 ```
 
 **Configuration flags**
