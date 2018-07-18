@@ -3,8 +3,6 @@
 from pathlib import Path
 import os
 import sys
-from feedmailer.app import App
+from feedmailer.commandline import cli
 
-app = App()
-
-app.run()
+cli()
