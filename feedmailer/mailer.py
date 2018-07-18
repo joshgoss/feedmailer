@@ -5,8 +5,6 @@ from email.mime.text import MIMEText
 from jinja2 import Template
 import smtplib
 
-from feedmailer import constants
-
 
 class Mailer:
     def __init__(self, **kwargs):
@@ -22,12 +20,12 @@ class Mailer:
         feed_title = kwargs['feed_title']
         article = kwargs['article']
         content_type = kwargs['content_type']
-        template_file = constants.TEMPLATES[content_type].article_template
+        template_file = kwargs['template']
 
         with open(template_file) as f:
             template = Template(f.read())
 
-            subject = subscription['title'] + ' - ' + a['title']
+            subject = feed_title + ' - ' + article['title']
 
             content = template.render(
                 article=article,
@@ -39,14 +37,14 @@ class Mailer:
             self.send(
                 subject[:max_length],
                 content,
-                constants.TEMPLATES[content_type]['content_type']
+                content_type
             )
 
     def send_digest(self, **kwargs):
         feed_title = kwargs['feed_title']
         articles = kwargs['articles']
         content_type = kwargs['content_type']
-        template_file = constants.TEMPLATES[content_type]['digest_template']
+        template_file = kwargs['template']
 
         with open(template_file) as f:
                 template = Template(f.read())
@@ -59,7 +57,7 @@ class Mailer:
         self.send(
             feed_title + ' Digest',
             content,
-            constants.TEMPLATES[content_type]['content_type']
+            content_type
         )
 
     def send(self, subject, content, content_type='plain'):
