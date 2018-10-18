@@ -8,6 +8,8 @@ setup(
     author='Joshua Goss',
     author_email='josh@joshgoss.com',
     scripts=['bin/feedmailer'],
+    zip_safe=False,
+    include_package_data=True,
     packages=['feedmailer'],
     package_data={'feedmailer': [
         'data/defaults.cfg',
