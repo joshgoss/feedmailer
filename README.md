@@ -17,6 +17,7 @@ feed-mailer add https://www.phoronix.com/rss.php --title "Phoronix"
 + `--email` <email> override default email
 + `--title` <title> title of feed
 + `--digest` enable digest of feed instead individual entries. Default is false
++ `--desc-length` override the default description length for articles
 
 
 ### List Subscriptions
