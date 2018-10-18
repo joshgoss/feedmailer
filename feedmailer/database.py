@@ -21,11 +21,10 @@ def get_user_version(conn):
 
 
 def setup_db(conn):
-    version = get_user_version(conn) + 1
+    version = get_user_version(conn)
     cur = conn.cursor()
 
-    if version == 1:
-        # Create feeds table
+    if version == 0:
         feeds_table = ("CREATE TABLE feeds ("
                        "feed_id INTEGER PRIMARY KEY NOT NULL,"
                        "title VARCHAR(75) NOT NULL,"
@@ -64,10 +63,16 @@ def setup_db(conn):
         cur.execute(feeds_table)
         cur.execute(subscriptions_table)
         cur.execute(articles_table)
-        cur.execute("PRAGMA user_version={v:d}".format(v=version))
 
-        conn.commit()
+        version += 1
 
+    if version == 1:
+        cur.execute("ALTER TABLE subscriptions ADD COLUMN desc_length INTEGER NULL")
+        version += 1
+
+    cur.execute("PRAGMA user_version={v:d}".format(v=version))
+
+    conn.commit()
     cur.close()
 
 
@@ -76,7 +81,9 @@ def find_feeds(conn, **kwargs):
     title = kwargs.get('title', None)
     url = kwargs.get('url', None)
 
-    query = ("SELECT f.feed_id, f.title, f.url, f.refreshed_at FROM feeds f "
+    # only return distinct feeds which users are subscribed to
+    query = ("SELECT DISTINCT f.feed_id, f.title, f.url, f.refreshed_at FROM feeds f "
+             "INNER JOIN subscriptions s ON f.feed_id = s.feed_id "
              "WHERE f.feed_id = COALESCE(?, f.feed_id) AND f.title = COALESCE(?, f.title) AND f.url = COALESCE(?, f.url);")
 
     cur = conn.cursor()
@@ -102,7 +109,7 @@ def find_subscriptions(conn, **kwargs):
     url = kwargs.get('url', None)
     email = kwargs.get('email', None)
 
-    query = ("SELECT f.feed_id, f.title, f.url, f.refreshed_at, s.subscription_id, s.email, s.attempted_delivery_at, s.digest FROM subscriptions s "
+    query = ("SELECT f.feed_id, f.title, f.url, f.refreshed_at, s.subscription_id, s.email, s.attempted_delivery_at, s.digest, s.desc_length FROM subscriptions s "
              "INNER JOIN feeds f ON s.feed_id = f.feed_id "
              "WHERE s.subscription_id = COALESCE(?, s.subscription_id) AND f.title = COALESCE(?, f.title) AND f.url = COALESCE(?, f.url) AND s.email = COALESCE(?, email);")
 
@@ -132,25 +139,27 @@ def add_subscription(conn, **kwargs):
                       "title VARCHAR NOT NULL,"
                       "url VARCHAR NOT NULL,"
                       "email VARCHAR NOT NULL,"
-                      "digest BOOLEAN"
+                      "digest BOOLEAN,"
+                      "desc_length INT"
                       ");")
-    insert_into_temp_sql = ("INSERT INTO temp_subs(title, url, email, digest)"
-                            "VALUES (?, ?, ?, ?);")
+    insert_into_temp_sql = ("INSERT INTO temp_subs(title, url, email, digest, desc_length)"
+                            "VALUES (?, ?, ?, ?, ?);")
 
     add_feed_sql = ("INSERT INTO feeds(title, url, created_at) "
                     "SELECT t.title, t.url, CURRENT_TIMESTAMP FROM temp_subs t "
                     "LEFT JOIN feeds f ON t.url = f.url "
                     "WHERE f.feed_id IS NULL;")
 
-    add_subscription_sql = ("INSERT INTO subscriptions(feed_id, email, digest, created_at) "
-                            "SELECT f.feed_id, t.email, t.digest, CURRENT_TIMESTAMP FROM temp_subs t "
+    add_subscription_sql = ("INSERT INTO subscriptions(feed_id, email, digest, desc_length, created_at) "
+                            "SELECT f.feed_id, t.email, t.digest, desc_length, CURRENT_TIMESTAMP FROM temp_subs t "
                             "INNER JOIN feeds f ON t.url = f.url;")
 
     values = (
         kwargs['title'],
         kwargs['url'],
         kwargs['email'],
-        kwargs['digest']
+        kwargs['digest'],
+        kwargs['desc_length']
     )
 
     cur.execute(temp_table_sql)

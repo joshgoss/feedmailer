@@ -3,7 +3,6 @@ Digest for {{feed_title}}
 {% for article in articles %}
 {{article.title.upper()}}
 {{article.url}}
-
-{{article.description}}
+{{article.description | truncate(desc_length)}}
 
 {% endfor %}
