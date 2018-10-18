@@ -21,6 +21,7 @@ class Mailer:
         article = kwargs['article']
         content_type = kwargs['content_type']
         template_file = kwargs['template']
+        desc_length = kwargs['desc_length']
 
         with open(template_file) as f:
             template = Template(f.read())
@@ -29,7 +30,9 @@ class Mailer:
 
             content = template.render(
                 article=article,
-                feed_title = feed_title
+                feed_title = feed_title,
+                desc_length = desc_length
+
             )
 
             max_length = 80
@@ -45,13 +48,15 @@ class Mailer:
         articles = kwargs['articles']
         content_type = kwargs['content_type']
         template_file = kwargs['template']
+        desc_length = kwargs['desc_length']
 
         with open(template_file) as f:
                 template = Template(f.read())
 
                 content = template.render(
                     articles=articles,
-                    feed_title=feed_title
+                    feed_title=feed_title,
+                    desc_length=desc_length
                 )
 
         self.send(

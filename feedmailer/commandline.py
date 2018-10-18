@@ -114,6 +114,7 @@ def __init_arg_parser(session):
     parser_add.add_argument('url', type=str, help='Location of rss feed')
     parser_add.add_argument('--title', dest='title', help='Specify custom title for feed')
     parser_add.add_argument('--email', type=str, dest='email', help='The email address to deliver the feed to')
+    parser_add.add_argument('--desc-length', type=int, dest='desc_length', help='Change max length for article descriptions')
 
     parser_add.add_argument(
         '--digest',
@@ -126,6 +127,7 @@ def __init_arg_parser(session):
         title=None,
         digest=False,
         max_age=None,
+        desc_length=300,
         email=session.config.get('email', None)
     )
 
@@ -215,6 +217,7 @@ def __handle_add(session, args):
                                   title=args.title or data['feed']['title'],
                                   email=args.email,
                                   digest=args.digest,
+                                  desc_length=args.desc_length,
                                   max_age=args.max_age)
 
 
@@ -305,7 +308,7 @@ def __handle_deliver_subscriptions(session, args):
         )
 
         if not articles:
-            session.logger.error("No articles to deliver for subscription  %d" % (subscription_id,))
+            session.logger.info("No articles to deliver for subscription  %d" % (subscription_id,))
             continue
 
         if args.pretend:
@@ -335,6 +338,7 @@ def __handle_deliver_subscriptions(session, args):
                 feed_title = subscription['title'],
                 articles = articles,
                 content_type = content_type,
+                desc_length = subscription['desc_length'],
                 template = TEMPLATES[content_type]['digest_template']
             )
         else:
@@ -343,6 +347,7 @@ def __handle_deliver_subscriptions(session, args):
                     feed_title = subscription['title'],
                     article = a,
                     content_type = content_type,
+                    desc_length = subscription['desc_length'],
                     template = TEMPLATES[content_type]['article_template']
                 )
 
