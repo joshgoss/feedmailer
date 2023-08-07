@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "feedmailer"
+version = "0.1.0"
+description = "Command line app to have rss feeds delivered to your email"
+authors = ["Joshua Goss"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+feedparser = "^6.0.10"
+python-dateutil = "^2.8.2"
+Jinja2 = "^3.1.2"
+html2text = "^2020.1.16"
+
+
+[tool.poetry.scripts]
+feedmailer = "feedmailer.main:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
