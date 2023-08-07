@@ -45,7 +45,7 @@ class Session():
         self.logger = kwargs['logger']
 
 
-def __init_config():
+def init_config():
     config_parser = configparser.ConfigParser()
 
     if not os.path.exists(USER_DIR):
@@ -78,13 +78,16 @@ def __init_config():
     }
 
 
-def __init_db():
+def init_db():
     db = database.connect(USER_DB_FILE)
     database.setup_db(db)
     return db
 
 
-def __init_logger():
+def init_logger():
+    if not os.path.exists(USER_DIR):
+        os.makedirs(USER_DIR)
+    
     logger = logging.getLogger(APP_NAME)
     logger.setLevel(logging.DEBUG)
 
@@ -101,7 +104,7 @@ def __init_logger():
     return logger
 
 
-def __init_arg_parser(session):
+def init_arg_parser(session):
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
         description="Deliver feeds by email"
@@ -170,7 +173,7 @@ def __init_arg_parser(session):
 
 
 # convert feedparser entry to db schema of an article
-def __entry_to_article(entry):
+def entry_to_article(entry):
     published = None
     author = None
     h = html2text.HTML2Text()
@@ -191,7 +194,7 @@ def __entry_to_article(entry):
     }
 
 
-def __handle_add(session, args):
+def add_feed(session, args):
         if not args.email:
             session.logger.error("An email must be provided either within the config file or as an argument to the 'add' command." )
             return
@@ -221,7 +224,7 @@ def __handle_add(session, args):
                                   max_age=args.max_age)
 
 
-def __handle_list(session):
+def list_subscriptions(session):
     subscriptions = database.find_subscriptions(session.db)
 
     if not len(subscriptions):
@@ -232,7 +235,7 @@ def __handle_list(session):
         print("%d. \"%s\" -> %s" % (s['subscription_id'], s['title'], s['email']))
 
 
-def __handle_list_feeds(session):
+def list_feeds(session):
         feeds = database.find_feeds(session.db)
 
         if not len(feeds):
@@ -242,7 +245,7 @@ def __handle_list_feeds(session):
             print("%d. \"%s\"" % (f['feed_id'], f['title']))
 
 
-def __handle_refresh_feed(session, args):
+def refresh_feed(session, args):
         feed = database.find_feed_by_id(session.db, args.feed_id)
 
         if not feed:
@@ -251,7 +254,7 @@ def __handle_refresh_feed(session, args):
 
         data = feedparser.parse(feed['url'])
 
-        articles = list(map((lambda a: __entry_to_article(a)), data.entries))
+        articles = list(map((lambda a: entry_to_article(a)), data.entries))
         num_added = database.refresh_articles(session.db, args.feed_id, articles)
 
         if num_added > 0:
@@ -262,7 +265,7 @@ def __handle_refresh_feed(session, args):
         return num_added
 
 
-def __handle_remove(session, args):
+def remove_subscription(session, args):
     subscription = database.find_subscription_by_id(
         session.db,
         args.subscription_id
@@ -275,13 +278,13 @@ def __handle_remove(session, args):
     database.remove_subscription(session.db, args.subscription_id)
 
 
-def __handle_refresh_all(session):
+def refresh_feeds(session):
         feeds = database.find_feeds(session.db)
         num_added = 0
 
         for f in feeds:
             data = feedparser.parse(f['url'])
-            articles = list(map((lambda a: __entry_to_article(a)), data.entries))
+            articles = list(map((lambda a: entry_to_article(a)), data.entries))
             num_added += database.refresh_articles(session.db, f['feed_id'], articles)
 
         session.logger.info("%d new articles found in total" % num_added)
@@ -289,7 +292,7 @@ def __handle_refresh_all(session):
         return num_added
 
 
-def __handle_deliver_subscriptions(session, args):
+def deliver_subscriptions(session, args):
     for subscription_id in args.subscription_ids:
         subscription = database.find_subscription_by_id(
             session.db,
@@ -354,30 +357,30 @@ def __handle_deliver_subscriptions(session, args):
 
 def cli(args=None):
     session = Session(
-        logger = __init_logger(),
-        config = __init_config(),
-        db = __init_db()
+        logger = init_logger(),
+        config = init_config(),
+        db = init_db()
     )
 
-    parser = __init_arg_parser(session)
+    parser = init_arg_parser(session)
     parsed_args = parser.parse_args(args)
     results = None
 
     if parsed_args.command == 'add':
-        results = __handle_add(session, parsed_args)
+        results = add_feed(session, parsed_args)
     elif parsed_args.command == 'list':
-        results = __handle_list(session)
+        results = list_subscriptions(session)
     elif parsed_args.command == 'list-feeds':
-        results = __handle_list_feeds(session)
+        results = list_feeds(session)
     elif parsed_args.command == 'remove':
-        results = __handle_remove(session, parsed_args)
+        results = remove_subscription(session, parsed_args)
     elif parsed_args.command == 'deliver':
-        results = __handle_deliver_subscriptions(session, parsed_args)
+        results = deliver_subscriptions(session, parsed_args)
     elif parsed_args.command == 'refresh':
         if parsed_args.feed_id:
-            results = __handle_refresh_feed(session, parsed_args)
+            results = refresh_feed(session, parsed_args)
         else:
-            results = __handle_refresh_all(session)
+            results = refresh_feeds(session)
     else:
         parser.print_help()
 

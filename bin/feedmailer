@@ -1,8 +1,0 @@
-#! /usr/bin/python3
-
-from pathlib import Path
-import os
-import sys
-from feedmailer.commandline import cli
-
-cli()
