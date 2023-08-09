@@ -67,7 +67,8 @@ def setup_db(conn: sqlite3.Connection):
         version += 1
 
     if version == 1:
-        cur.execute("ALTER TABLE subscriptions ADD COLUMN desc_length INTEGER DEFAULT 255")
+        cur.execute(
+            "ALTER TABLE subscriptions ADD COLUMN desc_length INTEGER DEFAULT 255")
         version += 1
 
     cur.execute("PRAGMA user_version={v:d}".format(v=version))

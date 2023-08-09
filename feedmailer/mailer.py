@@ -30,8 +30,8 @@ class Mailer:
 
             content = template.render(
                 article=article,
-                feed_title = feed_title,
-                desc_length = desc_length
+                feed_title=feed_title,
+                desc_length=desc_length
 
             )
 
@@ -51,13 +51,13 @@ class Mailer:
         desc_length = kwargs['desc_length']
 
         with open(template_file) as f:
-                template = Template(f.read())
+            template = Template(f.read())
 
-                content = template.render(
-                    articles=articles,
-                    feed_title=feed_title,
-                    desc_length=desc_length
-                )
+            content = template.render(
+                articles=articles,
+                feed_title=feed_title,
+                desc_length=desc_length
+            )
 
         self.send(
             feed_title + ' Digest',

@@ -2,7 +2,7 @@
 name = "feedmailer"
 version = "0.1.0"
 description = "Command line app to have rss feeds delivered to your email"
-authors = ["Joshua Goss"]
+authors = []
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -15,6 +15,9 @@ html2text = "^2020.1.16"
 
 [tool.poetry.scripts]
 feedmailer = "feedmailer.main:run"
+
+[tool.poetry.group.dev.dependencies]
+autopep8 = "^2.0.2"
 
 [build-system]
 requires = ["poetry-core"]
